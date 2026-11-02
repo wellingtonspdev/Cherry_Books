@@ -1,0 +1,4 @@
+Cherry Books V3 runtime assets.
+12 cover illustrations and book/sakura symbol created specifically for this project using geometric drawing. Reference mockup PNGs are not distributed.
+Book texts: original educational demonstration texts by Cherry Books Editorial; no commercial books reproduced.
+Fonts: Playfair Display, Lora, Inter from https://github.com/google/fonts (ofl directories). Individual SIL Open Font License files accompany each family in fonts/.
