@@ -1,0 +1,15 @@
+node_modules/
+.expo/
+dist/
+.vercel/
+.local/
+Cherry_Books_V3_Planning/
+*.zip
+*.log
+.env*
+!.env.example
+.agents/
+.skills/
+skills-lock.json
+*.md
+!/README.md
