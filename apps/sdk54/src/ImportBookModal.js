@@ -10,10 +10,10 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { parseBookFile, detectFormat, sanitizeBook } from "./bookImporter";
+import { parseBookFile, detectFormat, sanitizeBook, searchBookCoverOnline } from "./bookImporter";
 import { useLibrary } from "./store";
 import { colors as c, fonts } from "./tokens";
-import { styles, Button, Heading, Body } from "./components";
+import { styles, Button, Heading, Body, BookCover } from "./components";
 
 export default function ImportBookModal({ visible, onClose, onBookImported }) {
   const { saveCustomBook } = useLibrary();
@@ -29,6 +29,11 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
   const [author, setAuthor] = useState("");
   const [category, setCategory] = useState("Programação");
   const [synopsis, setSynopsis] = useState("");
+  const [cover, setCover] = useState(null);
+  const [fetchingCover, setFetchingCover] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [coverUrlInput, setCoverUrlInput] = useState("");
+  const [coverMessage, setCoverMessage] = useState("");
 
   const reset = () => {
     setStep(1);
@@ -41,11 +46,111 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
     setAuthor("");
     setCategory("Programação");
     setSynopsis("");
+    setCover(null);
+    setFetchingCover(false);
+    setShowUrlInput(false);
+    setCoverUrlInput("");
+    setCoverMessage("");
   };
 
   const handleClose = () => {
     reset();
     onClose();
+  };
+
+  const compressImage = (file, maxWidth = 400, quality = 0.82) => {
+    return new Promise((resolve) => {
+      if (typeof FileReader === "undefined") return resolve(null);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const src = e.target?.result;
+        if (typeof window === "undefined" || !src) return resolve(src);
+        const img = new window.Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            let w = img.width;
+            let h = img.height;
+            if (w > maxWidth) {
+              h = Math.round((h * maxWidth) / w);
+              w = maxWidth;
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          } catch {
+            resolve(src);
+          }
+        };
+        img.onerror = () => resolve(src);
+        img.src = src;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handlePickCoverImage = () => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/png,image/jpeg,image/webp,image/jpg";
+      input.onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setLoading(true);
+        try {
+          const dataUri = await compressImage(file);
+          if (dataUri) {
+            setCover(dataUri);
+            setCoverMessage("Imagem personalizada carregada!");
+          }
+        } catch {
+          setError("Não foi possível carregar a imagem selecionada.");
+        } finally {
+          setLoading(false);
+        }
+      };
+      input.click();
+    }
+  };
+
+  const handleSearchOnlineCover = async () => {
+    if (!title) return;
+    setFetchingCover(true);
+    setCoverMessage("");
+    try {
+      const url = await searchBookCoverOnline(title, author);
+      if (url) {
+        setCover(url);
+        setCoverMessage("Capa oficial encontrada no Open Library!");
+      } else {
+        setCoverMessage("Nenhuma capa encontrada online para esta obra.");
+      }
+    } catch {
+      setCoverMessage("Erro ao buscar capa online.");
+    } finally {
+      setFetchingCover(false);
+    }
+  };
+
+  const handleApplyCoverUrl = () => {
+    const trimmed = (coverUrlInput || "").trim();
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      setCover(trimmed);
+      setCoverMessage("Link de capa aplicado com sucesso!");
+      setShowUrlInput(false);
+      setCoverUrlInput("");
+    } else {
+      setCoverMessage("Insira uma URL válida iniciando com https://");
+    }
+  };
+
+  const handleRemoveCover = () => {
+    setCover(null);
+    setCoverMessage("Capa tipográfica editorial selecionada.");
   };
 
   const processFile = async (name, bufferOrString) => {
@@ -62,6 +167,12 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
       setAuthor(book.author || "Autor Desconhecido");
       setCategory(book.category || "Geral");
       setSynopsis(book.synopsis || "");
+      setCover(book.cover || null);
+      if (book.cover) {
+        setCoverMessage("Capa extraída automaticamente do arquivo!");
+      } else {
+        setCoverMessage("");
+      }
       setStep(2);
     } catch (err) {
       setError(err?.message || "Não foi possível processar o arquivo.");
@@ -114,6 +225,7 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
         author,
         category,
         synopsis,
+        cover: cover || null,
         isPublic,
       });
 
@@ -346,6 +458,277 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
                   blocos
                 </Text>
                 <Ionicons name="checkmark-circle" size={18} color={c.brand} />
+              </View>
+
+              {/* Seção de Capa da Obra */}
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: c.border || "#E5D9D7",
+                  borderRadius: 16,
+                  padding: 14,
+                  backgroundColor: c.surface || "#FFFFFF",
+                  marginBottom: 16,
+                  flexDirection: "row",
+                  gap: 14,
+                  alignItems: "center",
+                }}
+              >
+                <View style={{ alignItems: "center" }}>
+                  <BookCover
+                    book={{
+                      title: title || "Sem Título",
+                      author: author || "Autor Desconhecido",
+                      format: parsedBook.format,
+                      cover,
+                    }}
+                    width={84}
+                  />
+                  <Text
+                    style={{
+                      fontFamily: fonts.ui,
+                      fontSize: 10,
+                      color: c.muted,
+                      marginTop: 4,
+                      textAlign: "center",
+                    }}
+                  >
+                    {cover ? "Capa Gráfica" : "Capa Tipográfica"}
+                  </Text>
+                </View>
+
+                <View style={{ flex: 1, gap: 6 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: fonts.ui,
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: c.ink,
+                      }}
+                    >
+                      Capa da Obra
+                    </Text>
+                    {cover ? (
+                      <View
+                        style={{
+                          backgroundColor: "#E8F5E9",
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: fonts.ui,
+                            fontSize: 11,
+                            color: "#2E7D32",
+                            fontWeight: "600",
+                          }}
+                        >
+                          ✓ Com Imagem
+                        </Text>
+                      </View>
+                    ) : (
+                      <View
+                        style={{
+                          backgroundColor: "#F5F5F5",
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: fonts.ui,
+                            fontSize: 11,
+                            color: "#666",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Editorial Padrão
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {coverMessage ? (
+                    <Text
+                      style={{
+                        fontFamily: fonts.ui,
+                        fontSize: 11,
+                        color: c.brand,
+                        fontWeight: "500",
+                      }}
+                    >
+                      {coverMessage}
+                    </Text>
+                  ) : null}
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: 6,
+                      marginTop: 4,
+                    }}
+                  >
+                    <Pressable
+                      onPress={handlePickCoverImage}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        backgroundColor: "#F7ECEE",
+                        borderWidth: 1,
+                        borderColor: c.brand,
+                      }}
+                    >
+                      <Ionicons name="image-outline" size={14} color={c.brand} />
+                      <Text
+                        style={{
+                          fontFamily: fonts.ui,
+                          fontSize: 12,
+                          color: c.brand,
+                          fontWeight: "600",
+                        }}
+                      >
+                        Escolher Foto
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={handleSearchOnlineCover}
+                      disabled={fetchingCover}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        backgroundColor: c.canvas || "#FFFBF7",
+                        borderWidth: 1,
+                        borderColor: c.border,
+                      }}
+                    >
+                      {fetchingCover ? (
+                        <ActivityIndicator size="small" color={c.brand} />
+                      ) : (
+                        <Ionicons name="search-outline" size={14} color={c.ink} />
+                      )}
+                      <Text
+                        style={{
+                          fontFamily: fonts.ui,
+                          fontSize: 12,
+                          color: c.ink,
+                          fontWeight: "500",
+                        }}
+                      >
+                        Buscar Online
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => setShowUrlInput(!showUrlInput)}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                        paddingHorizontal: 8,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        backgroundColor: c.canvas || "#FFFBF7",
+                        borderWidth: 1,
+                        borderColor: c.border,
+                      }}
+                    >
+                      <Ionicons name="link-outline" size={14} color={c.ink} />
+                      <Text
+                        style={{
+                          fontFamily: fonts.ui,
+                          fontSize: 12,
+                          color: c.ink,
+                        }}
+                      >
+                        URL
+                      </Text>
+                    </Pressable>
+
+                    {cover ? (
+                      <Pressable
+                        onPress={handleRemoveCover}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                          paddingHorizontal: 8,
+                          paddingVertical: 6,
+                          borderRadius: 8,
+                          backgroundColor: "#FBE9E7",
+                        }}
+                      >
+                        <Ionicons
+                          name="trash-outline"
+                          size={14}
+                          color="#C62828"
+                        />
+                        <Text
+                          style={{
+                            fontFamily: fonts.ui,
+                            fontSize: 12,
+                            color: "#C62828",
+                          }}
+                        >
+                          Remover
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+
+                  {showUrlInput ? (
+                    <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
+                      <TextInput
+                        placeholder="https://exemplo.com/capa.jpg"
+                        value={coverUrlInput}
+                        onChangeText={setCoverUrlInput}
+                        style={[
+                          styles.input,
+                          { flex: 1, minHeight: 36, padding: 6, fontSize: 12 },
+                        ]}
+                      />
+                      <Pressable
+                        onPress={handleApplyCoverUrl}
+                        style={{
+                          backgroundColor: c.brand,
+                          paddingHorizontal: 12,
+                          justifyContent: "center",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontFamily: fonts.ui,
+                            fontSize: 12,
+                            color: "#FFF",
+                            fontWeight: "600",
+                          }}
+                        >
+                          OK
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
               </View>
 
               <Text

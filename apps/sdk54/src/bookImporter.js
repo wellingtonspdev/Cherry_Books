@@ -361,6 +361,18 @@ function parseZipEntries(buffer) {
           }
           return compData.toString("utf8");
         },
+        readBuffer: () => {
+          if (compression === 0) return compData;
+          if (compression === 8) {
+            try {
+              const zlib = require("node:zlib");
+              return zlib.inflateRawSync(compData);
+            } catch {
+              return compData;
+            }
+          }
+          return compData;
+        },
       });
     }
   }
@@ -379,6 +391,22 @@ export function parseDocxBook(buffer, filename = "documento.docx") {
   let title = filename.replace(/\.docx$/i, "");
   let author = "Autor Desconhecido";
   let synopsis = "";
+  let cover = null;
+
+  // Tenta extrair imagem em word/media/
+  for (const [name, entry] of entries.entries()) {
+    if (/^word\/media\/image1\.(jpe?g|png|webp)$/i.test(name)) {
+      try {
+        const imgBuf = entry.readBuffer();
+        if (imgBuf && imgBuf.length > 50) {
+          const ext = (name.split(".").pop() || "jpg").toLowerCase();
+          const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+          cover = `data:${mime};base64,${imgBuf.toString("base64")}`;
+          break;
+        }
+      } catch {}
+    }
+  }
 
   const coreEntry = entries.get("docProps/core.xml");
   if (coreEntry) {
@@ -447,6 +475,7 @@ export function parseDocxBook(buffer, filename = "documento.docx") {
     title,
     author,
     synopsis,
+    cover,
     format: "docx",
     chapters,
   });
@@ -486,20 +515,83 @@ export function parseEpubBook(buffer, filename = "livro.epub") {
   if (aMatch && aMatch[1].trim()) author = stripHtml(aMatch[1]);
   if (sMatch && sMatch[1].trim()) synopsis = stripHtml(sMatch[1]);
 
-  // Mapeia manifest items: id -> href
+  // Mapeia manifest items: id -> { href, mediaType, properties }
   const manifest = new Map();
-  const itemRegex = /<item\s+[^>]*id=["']([^"']+)["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+  const itemRegex = /<item\s+([^>]+)>/gi;
   let m;
   while ((m = itemRegex.exec(opfXml)) !== null) {
-    manifest.set(m[1], opfDir + m[2]);
+    const attrs = m[1];
+    const idM = attrs.match(/id=["']([^"']+)["']/i);
+    const hrefM = attrs.match(/href=["']([^"']+)["']/i);
+    const mediaTypeM = attrs.match(/media-type=["']([^"']+)["']/i);
+    const propM = attrs.match(/properties=["']([^"']+)["']/i);
+    if (idM && hrefM) {
+      manifest.set(idM[1], {
+        href: opfDir + hrefM[1],
+        mediaType: mediaTypeM ? mediaTypeM[1] : "",
+        properties: propM ? propM[1] : "",
+      });
+    }
+  }
+
+  // Extrai capa do EPUB (EPUB 3 properties="cover-image", EPUB 2 <meta name="cover">, ou id="cover")
+  let cover = null;
+  let coverHref = null;
+  let coverMime = "image/jpeg";
+
+  for (const [id, item] of manifest.entries()) {
+    if (item.properties.includes("cover-image")) {
+      coverHref = item.href;
+      coverMime = item.mediaType || "image/jpeg";
+      break;
+    }
+  }
+
+  if (!coverHref) {
+    const metaCoverMatch = opfXml.match(/<meta\s+[^>]*name=["']cover["'][^>]*content=["']([^"']+)["']/i);
+    if (metaCoverMatch) {
+      const coverItem = manifest.get(metaCoverMatch[1]);
+      if (coverItem) {
+        coverHref = coverItem.href;
+        coverMime = coverItem.mediaType || "image/jpeg";
+      }
+    }
+  }
+
+  if (!coverHref) {
+    for (const [id, item] of manifest.entries()) {
+      if (
+        (id.toLowerCase().includes("cover") || item.href.toLowerCase().includes("cover")) &&
+        item.mediaType.startsWith("image/")
+      ) {
+        coverHref = item.href;
+        coverMime = item.mediaType || "image/jpeg";
+        break;
+      }
+    }
+  }
+
+  if (coverHref) {
+    const coverEntry =
+      entries.get(coverHref) ||
+      entries.get(decodeURIComponent(coverHref)) ||
+      entries.get(coverHref.replace(/^\.\//, ""));
+    if (coverEntry && typeof coverEntry.readBuffer === "function") {
+      try {
+        const imgBuf = coverEntry.readBuffer();
+        if (imgBuf && imgBuf.length > 50) {
+          cover = `data:${coverMime};base64,${imgBuf.toString("base64")}`;
+        }
+      } catch {}
+    }
   }
 
   // Lê spine itemrefs
   const spineRegex = /<itemref\s+[^>]*idref=["']([^"']+)["'][^>]*>/gi;
   const spine = [];
   while ((m = spineRegex.exec(opfXml)) !== null) {
-    const href = manifest.get(m[1]);
-    if (href) spine.push(href);
+    const item = manifest.get(m[1]);
+    if (item && item.href) spine.push(item.href);
   }
 
   const chapters = [];
@@ -541,6 +633,7 @@ export function parseEpubBook(buffer, filename = "livro.epub") {
     title,
     author,
     synopsis,
+    cover,
     format: "epub",
     chapters,
   });
@@ -587,6 +680,7 @@ export function parseMobiBook(buffer, filename = "livro.mobi") {
   // Lê metadados EXTH (se existirem após MOBI header)
   let author = "Autor Desconhecido";
   let synopsis = "";
+  let coverOffset = null;
   const mobiHeaderLen = buf.readUInt32BE(rec0Offset + 20);
   const exthStart = rec0Offset + 16 + mobiHeaderLen;
 
@@ -601,7 +695,47 @@ export function parseMobiBook(buffer, filename = "livro.mobi") {
       if (tag === 100) author = sanitizeString(val); // Autor
       if (tag === 103) synopsis = sanitizeString(val); // Sinopse
       if (tag === 503) title = sanitizeString(val); // Título atualizado
+      if (tag === 201 && len >= 12) coverOffset = buf.readUInt32BE(cur + 8); // Offset da capa
       cur += len;
+    }
+  }
+
+  // Extrai capa de imagem dos records PalmDOC
+  let cover = null;
+  let firstImageIndex = 0;
+  if (rec0Offset + 16 + 112 <= buf.length) {
+    firstImageIndex = buf.readUInt32BE(rec0Offset + 16 + 108);
+  }
+
+  const candidateRecordIndices = [];
+  if (coverOffset !== null && firstImageIndex > 0) {
+    candidateRecordIndices.push(firstImageIndex + coverOffset);
+  }
+  if (firstImageIndex > 0 && firstImageIndex < numRecords) {
+    candidateRecordIndices.push(firstImageIndex);
+  }
+  for (let r = textRecords + 1; r < Math.min(numRecords, textRecords + 10); r++) {
+    candidateRecordIndices.push(r);
+  }
+
+  for (const recIdx of candidateRecordIndices) {
+    if (recIdx >= numRecords) continue;
+    const rOffset = buf.readUInt32BE(78 + recIdx * 8);
+    const nextOffset = recIdx + 1 < numRecords ? buf.readUInt32BE(78 + (recIdx + 1) * 8) : buf.length;
+    if (rOffset < buf.length && nextOffset <= buf.length && nextOffset > rOffset) {
+      const recData = buf.slice(rOffset, nextOffset);
+      if (recData.length >= 100) {
+        if (recData[0] === 0xff && recData[1] === 0xd8 && recData[2] === 0xff) {
+          cover = `data:image/jpeg;base64,${recData.toString("base64")}`;
+          break;
+        } else if (recData[0] === 0x89 && recData[1] === 0x50 && recData[2] === 0x4e && recData[3] === 0x47) {
+          cover = `data:image/png;base64,${recData.toString("base64")}`;
+          break;
+        } else if (recData[0] === 0x47 && recData[1] === 0x49 && recData[2] === 0x46) {
+          cover = `data:image/gif;base64,${recData.toString("base64")}`;
+          break;
+        }
+      }
     }
   }
 
@@ -617,7 +751,15 @@ export function parseMobiBook(buffer, filename = "livro.mobi") {
   }
 
   const cleanText = stripHtml(rawText);
-  return parseTextBook(cleanText, title);
+  const book = parseTextBook(cleanText, title);
+  return sanitizeBook({
+    ...book,
+    title,
+    author,
+    synopsis: synopsis || book.synopsis,
+    cover,
+    format: "mobi",
+  });
 }
 
 // --- Parser de PDF ---
@@ -632,6 +774,24 @@ export function parsePdfBook(buffer, filename = "documento.pdf") {
   // Verifica proteção / senha (/Encrypt)
   if (/\/Encrypt[\s\/<\[]/i.test(pdfStr)) {
     throw new Error("PDF protegido por senha/criptografia não é suportado.");
+  }
+
+  // Extrai capa se houver imagem JPEG embutida (entre 2KB e 800KB)
+  let cover = null;
+  const maxSearch = Math.min(buf.length, 2 * 1024 * 1024);
+  for (let i = 0; i < maxSearch - 100; i++) {
+    if (buf[i] === 0xff && buf[i + 1] === 0xd8 && buf[i + 2] === 0xff) {
+      for (let j = i + 100; j < Math.min(buf.length, i + 800 * 1024); j++) {
+        if (buf[j] === 0xff && buf[j + 1] === 0xd9) {
+          const imgSize = j + 2 - i;
+          if (imgSize >= 100 && imgSize <= 800 * 1024) {
+            cover = `data:image/jpeg;base64,${buf.slice(i, j + 2).toString("base64")}`;
+          }
+          break;
+        }
+      }
+      if (cover) break;
+    }
   }
 
   // Extrai blocos de texto PDF (operadores BT ... ET)
@@ -666,7 +826,13 @@ export function parsePdfBook(buffer, filename = "documento.pdf") {
   }
 
   const title = filename.replace(/\.pdf$/i, "");
-  return parseTextBook(fullText, title);
+  const book = parseTextBook(fullText, title);
+  return sanitizeBook({
+    ...book,
+    title,
+    cover,
+    format: "pdf",
+  });
 }
 
 // --- Ponto de Entrada Principal ---
@@ -691,4 +857,23 @@ export function parseBookFile({ filename, data, type }) {
     default:
       return parseTextBook(typeof data === "string" ? data : data.toString("utf8"), filename);
   }
+}
+
+// --- Busca Automática de Capa Online (Open Library API) ---
+export async function searchBookCoverOnline(title = "", author = "") {
+  if (!title || typeof title !== "string") return null;
+  try {
+    const cleanTitle = title.replace(/\.[^.]+$/, "").trim();
+    const query = encodeURIComponent(`${cleanTitle} ${author || ""}`.trim());
+    const res = await fetch(`https://openlibrary.org/search.json?q=${query}&limit=3`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const docWithCover = (data.docs || []).find((d) => d.cover_i);
+    if (docWithCover && docWithCover.cover_i) {
+      return `https://covers.openlibrary.org/b/id/${docWithCover.cover_i}-M.jpg`;
+    }
+  } catch {
+    // Falha silenciosa de rede ou offline
+  }
+  return null;
 }

@@ -37,6 +37,7 @@ const {
   parseMobiBook,
   parsePdfBook,
   sanitizeBook,
+  searchBookCoverOnline,
 } = require(path.join(base, "src/bookImporter"));
 
 // Helper to create a minimal valid zip in memory
@@ -511,4 +512,103 @@ test("registro dinâmico de catálogo e preservação na hidratação de estado"
   // Limpeza
   unregisterCustomBook("meu-livro-personalizado");
   assert.equal(getBook("meu-livro-personalizado"), undefined);
+});
+
+test("extrai capas automáticas de EPUB, MOBI, DOCX e PDF e preserva capa manual", async () => {
+  const fakeJpeg = Buffer.from([
+    0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46,
+    ...new Array(100).fill(0xaa),
+    0xff, 0xd9,
+  ]);
+
+  // 1. EPUB com capa via properties="cover-image"
+  const containerXml = `<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`;
+
+  const opfXml = `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>Livro com Capa EPUB</dc:title>
+    <dc:creator>Ada Lovelace</dc:creator>
+  </metadata>
+  <manifest>
+    <item id="cover-img" href="images/capa.jpg" media-type="image/jpeg" properties="cover-image"/>
+    <item id="ch1" href="cap1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref="ch1"/>
+  </spine>
+</package>`;
+
+  const cap1 = `<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body><h1>Capítulo 1</h1><p>Conteúdo de teste.</p></body></html>`;
+
+  const epubZip = createMinimalZip([
+    { name: "META-INF/container.xml", data: containerXml },
+    { name: "OEBPS/content.opf", data: opfXml },
+    { name: "OEBPS/images/capa.jpg", data: fakeJpeg },
+    { name: "OEBPS/cap1.xhtml", data: cap1 },
+  ]);
+
+  const epubBook = parseEpubBook(epubZip, "livro-com-capa.epub");
+  assert.ok(epubBook.cover, "Capa do EPUB deve ser extraída");
+  assert.ok(epubBook.cover.startsWith("data:image/jpeg;base64,"));
+
+  // 2. MOBI com capa em record PDB
+  const mobiBuf = Buffer.alloc(1000);
+  mobiBuf.write("Livro Kindle com Capa", 0);
+  mobiBuf.write("BOOKMOBI", 60);
+  mobiBuf.writeUInt16BE(3, 76); // numRecords = 3
+  mobiBuf.writeUInt32BE(100, 78); // rec0Offset = 100
+  mobiBuf.writeUInt32BE(300, 78 + 8); // rec1Offset = 300 (text)
+  mobiBuf.writeUInt32BE(600, 78 + 16); // rec2Offset = 600 (image)
+
+  // rec 0 (header) em 100
+  mobiBuf.writeUInt16BE(0, 100 + 12); // encryption = 0 (livre)
+  mobiBuf.writeUInt16BE(1, 100 + 8); // recordCount = 1 text record
+  mobiBuf.writeUInt32BE(200, 100 + 20); // mobiHeaderLen
+  mobiBuf.writeUInt32BE(2, 100 + 16 + 108); // first_image_index = 2
+
+  // rec 1 (texto)
+  Buffer.from("Capítulo 1\nTexto teste de leitura com reflexões acadêmicas.").copy(mobiBuf, 300);
+
+  // rec 2 (imagem JPEG) em offset 600
+  fakeJpeg.copy(mobiBuf, 600);
+
+  const mobiBook = parseMobiBook(mobiBuf, "kindle-capa.mobi");
+  assert.ok(mobiBook.cover, "Capa do MOBI deve ser extraída dos registros de imagem");
+  assert.ok(mobiBook.cover.startsWith("data:image/jpeg;base64,"));
+
+  // 3. DOCX com media/image1.jpeg
+  const docxXml = `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Texto do Word</w:t></w:r></w:p></w:body></w:document>`;
+  const docxZip = createMinimalZip([
+    { name: "word/document.xml", data: docxXml },
+    { name: "word/media/image1.jpeg", data: fakeJpeg },
+  ]);
+  const docxBook = parseDocxBook(docxZip, "documento.docx");
+  assert.ok(docxBook.cover, "Capa de mídia do DOCX deve ser extraída");
+  assert.ok(docxBook.cover.startsWith("data:image/jpeg;base64,"));
+
+  // 4. PDF com imagem JPEG embutida
+  const fakePdf = Buffer.concat([
+    Buffer.from("%PDF-1.4\n1 0 obj\n<< /Type /XObject /Subtype /Image >>\nstream\n"),
+    Buffer.alloc(2500, 0xbb), // padding para tamanho >= 2048
+    fakeJpeg,
+    Buffer.from("\nendstream\nendobj\nBT /F1 12 Tf (Introdução ao PDF com Capa) Tj ET\n"),
+  ]);
+  const pdfBook = parsePdfBook(fakePdf, "livro-pdf.pdf");
+  assert.ok(pdfBook.cover, "Capa de stream JPEG do PDF deve ser extraída");
+  assert.ok(pdfBook.cover.startsWith("data:image/jpeg;base64,"));
+
+  // 5. Preservação de capa personalizada no sanitizeBook
+  const sanitized = sanitizeBook({
+    title: "Obra com Capa Externa",
+    author: "Autor Teste",
+    cover: "https://exemplo.com/capa.jpg",
+    chapters: [{ title: "C1", blocks: [{ text: "Parágrafo" }] }],
+  });
+  assert.equal(sanitized.cover, "https://exemplo.com/capa.jpg");
 });
