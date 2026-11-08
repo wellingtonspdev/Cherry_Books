@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { View, ScrollView, FlatList } from "react-native";
 import { books, categories, getBook, searchBooks } from "./catalog";
 import { useLibrary } from "./store";
 import { MotionPress } from "./motion";
 import { colors as c } from "./tokens";
+import ImportBookModal from "./ImportBookModal";
 import {
   Screen,
   Heading,
@@ -30,7 +31,8 @@ export default function Explorar({ navigation }) {
     [query, setQuery] = useState(""),
     [debounced, setDebounced] = useState(""),
     [category, setCategory] = useState("Todos"),
-    [searching, setSearching] = useState(false);
+    [searching, setSearching] = useState(false),
+    [modalVisible, setModalVisible] = useState(false);
   const input = useRef(),
     list = useRef(),
     { columns, cardWidth } = useGrid();

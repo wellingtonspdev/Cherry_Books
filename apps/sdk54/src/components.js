@@ -18,7 +18,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { MotionPress, MotionScreen } from "./motion";
 import { useLibrary } from "./store";
 import { AppGlassSurface } from "./glass";
@@ -299,13 +299,69 @@ export function BotanicalCorner({ compact = false }) {
   );
 }
 export function BookCover({ book, width = 110, style }) {
+  if (book?.cover) {
+    return (
+      <Image
+        accessibilityLabel={`Capa de ${book.title}`}
+        source={typeof book.cover === "string" ? { uri: book.cover } : book.cover}
+        resizeMode="cover"
+        style={[styles.cover, { width, height: width * 1.5 }, style]}
+      />
+    );
+  }
+  const formatBadge = (book?.format || "LIVRO").toUpperCase();
   return (
-    <Image
-      accessibilityLabel={`Capa de ${book.title}`}
-      source={book.cover}
-      resizeMode="cover"
-      style={[styles.cover, { width, height: width * 1.5 }, style]}
-    />
+    <View
+      accessibilityLabel={`Capa tipográfica de ${book?.title || "Livro"}`}
+      style={[
+        styles.cover,
+        {
+          width,
+          height: width * 1.5,
+          backgroundColor: "#402E31",
+          padding: 8,
+          justifyContent: "space-between",
+          borderWidth: 1,
+          borderColor: "#8F3A50",
+        },
+        style,
+      ]}
+    >
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Text style={{ fontFamily: fonts.ui, fontSize: Math.max(8, width * 0.08), color: "#D19CA8", fontWeight: "700" }}>
+          CHERRY
+        </Text>
+        <Text style={{ fontFamily: fonts.ui, fontSize: Math.max(7, width * 0.07), color: "#FFFFFF", backgroundColor: "#8F3A50", paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, fontWeight: "600" }}>
+          {formatBadge}
+        </Text>
+      </View>
+      <View style={{ flex: 1, justifyContent: "center", paddingVertical: 4 }}>
+        <Text
+          numberOfLines={3}
+          style={{
+            fontFamily: fonts.display,
+            fontSize: Math.max(10, width * 0.11),
+            lineHeight: Math.max(13, width * 0.14),
+            color: "#FFFBF7",
+            fontWeight: "600",
+            textAlign: "center",
+          }}
+        >
+          {book?.title || "Sem título"}
+        </Text>
+      </View>
+      <Text
+        numberOfLines={1}
+        style={{
+          fontFamily: fonts.ui,
+          fontSize: Math.max(8, width * 0.08),
+          color: "#E5C8D0",
+          textAlign: "center",
+        }}
+      >
+        {book?.author || "Autor Desconhecido"}
+      </Text>
+    </View>
   );
 }
 export function ProgressBar({ value, color = c.brand }) {

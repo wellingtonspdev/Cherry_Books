@@ -8,7 +8,7 @@ import {
   Platform,
   useWindowDimensions,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 import { MotionPresence } from "./motion";
 import { ReaderTypographySheet } from "./reader-panels";
 import { SafeAreaView } from "react-native-safe-area-context";

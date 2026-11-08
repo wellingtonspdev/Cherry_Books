@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, FlatList } from "react-native";
-import { books } from "./catalog";
+import { getAllBooks } from "./catalog";
+import ImportBookModal from "./ImportBookModal";
 import { useLibrary } from "./store";
 import {
   Screen,
@@ -11,12 +12,14 @@ import {
   EmptyState,
   styles,
   useGrid,
+  IconButton,
 } from "./components";
 export default function Biblioteca({ navigation }) {
   const { state } = useLibrary(),
     [filter, setFilter] = useState("Em leitura"),
+    [modalVisible, setModalVisible] = useState(false),
     { columns, cardWidth } = useGrid();
-  const data = books
+  const data = getAllBooks()
     .filter((b) =>
       filter === "Salvos"
         ? state.savedBookIds.includes(b.id)
@@ -40,11 +43,18 @@ export default function Biblioteca({ navigation }) {
         columnWrapperStyle={columns > 1 ? { gap: 16 } : undefined}
         ListHeaderComponent={
           <View>
-            <View style={{ paddingTop: 24, paddingBottom: 24 }}>
-              <Heading style={{ fontSize: 28, lineHeight: 37 }}>
-                Minha Biblioteca
-              </Heading>
-              <BotanicalCorner compact />
+            <View style={{ paddingTop: 24, paddingBottom: 24, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <View>
+                <Heading style={{ fontSize: 28, lineHeight: 37 }}>
+                  Minha Biblioteca
+                </Heading>
+                <BotanicalCorner compact />
+              </View>
+              <IconButton
+                name="cloud-upload-outline"
+                label="Importar Livro"
+                onPress={() => setModalVisible(true)}
+              />
             </View>
             <View style={[styles.wrap, { marginBottom: 24 }]}>
               {["Em leitura", "Salvos", "Concluídos"].map((label) => (
@@ -84,6 +94,11 @@ export default function Biblioteca({ navigation }) {
             />
           </View>
         )}
+      />
+      <ImportBookModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onBookImported={(book) => navigation.navigate("Detalhes", { bookId: book.id })}
       />
     </Screen>
   );

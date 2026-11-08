@@ -209,14 +209,37 @@ export const categories = [
   "Cloud",
   "Arquitetura",
 ];
-export const getBook = (id) => books.find((book) => book.id === id);
+const customBooksMap = new Map();
+
+export const registerCustomBooks = (list) => {
+  if (Array.isArray(list)) {
+    for (const b of list) {
+      if (b && typeof b.id === "string") customBooksMap.set(b.id, b);
+    }
+  } else if (list && typeof list.id === "string") {
+    customBooksMap.set(list.id, list);
+  }
+};
+
+export const unregisterCustomBook = (id) => {
+  customBooksMap.delete(id);
+};
+
+export const getCustomBooks = () => Array.from(customBooksMap.values());
+
+export const getAllBooks = () => [...books, ...customBooksMap.values()];
+
+export const getBook = (id) =>
+  books.find((book) => book.id === id) || customBooksMap.get(id);
+
 export const normalize = (value) =>
   value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+
 export const searchBooks = (query = "", category = "Todos") =>
-  books.filter(
+  getAllBooks().filter(
     (book) =>
       (category === "Todos" || book.category === category) &&
       normalize(`${book.title} ${book.author} ${book.category}`).includes(

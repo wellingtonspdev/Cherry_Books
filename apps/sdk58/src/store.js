@@ -8,14 +8,25 @@ import React, {
 import { AccessibilityInfo, AppState, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initialState, hydrate, createWriteQueue } from "./model";
+import {
+  registerCustomBooks,
+  unregisterCustomBook,
+  getCustomBooks,
+} from "./catalog";
+import {
+  loadPublicLibraryBooks,
+  publishToPublicLibrary,
+} from "./publicLibrary";
 const Context = createContext(null);
 export const STORAGE_KEY = "cherry-books:v1";
+export const CUSTOM_BOOKS_STORAGE_KEY = "cherry-books:custom-books:v1";
 export function LibraryProvider({ children }) {
   const [state, setState] = useState(initialState),
     [ready, setReady] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
-    [reduceMotion, setReduceMotion] = useState(true);
+    [reduceMotion, setReduceMotion] = useState(true),
+    [customBooksList, setCustomBooksList] = useState([]);
   const current = useRef(state),
     write = useRef(
       createWriteQueue((value) =>
@@ -24,8 +35,20 @@ export function LibraryProvider({ children }) {
     );
   useEffect(() => {
     let active = true;
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => {
+    (async () => {
+      try {
+        await loadPublicLibraryBooks();
+        const rawCustom = await AsyncStorage.getItem(CUSTOM_BOOKS_STORAGE_KEY);
+        if (rawCustom) {
+          try {
+            const parsed = JSON.parse(rawCustom);
+            if (Array.isArray(parsed)) {
+              registerCustomBooks(parsed);
+              if (active) setCustomBooksList(parsed);
+            }
+          } catch {}
+        }
+        const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (active) {
           const data = hydrate(raw);
           current.current = data.state;
@@ -36,12 +59,12 @@ export function LibraryProvider({ children }) {
             );
           setReady(true);
         }
-      })
-      .catch(() => {
+      } catch {
         if (active) {
           setError("Não foi possível abrir os dados locais. Tente novamente.");
         }
-      });
+      }
+    })();
     return () => {
       active = false;
     };
@@ -122,6 +145,43 @@ export function LibraryProvider({ children }) {
         ...s,
         progressByBook: { ...s.progressByBook, [progress.bookId]: progress },
       })),
+    customBooks: customBooksList,
+    saveCustomBook: async (book, andPublish = false) => {
+      registerCustomBooks(book);
+      if (andPublish) {
+        await publishToPublicLibrary(book);
+      }
+      const allCustom = getCustomBooks();
+      setCustomBooksList(allCustom);
+      try {
+        await AsyncStorage.setItem(
+          CUSTOM_BOOKS_STORAGE_KEY,
+          JSON.stringify(allCustom),
+        );
+      } catch {}
+      update((s) => ({
+        ...s,
+        savedBookIds: s.savedBookIds.includes(book.id)
+          ? s.savedBookIds
+          : [...s.savedBookIds, book.id],
+      }));
+      return book;
+    },
+    deleteCustomBook: async (id) => {
+      unregisterCustomBook(id);
+      const allCustom = getCustomBooks();
+      setCustomBooksList(allCustom);
+      try {
+        await AsyncStorage.setItem(
+          CUSTOM_BOOKS_STORAGE_KEY,
+          JSON.stringify(allCustom),
+        );
+      } catch {}
+      update((s) => ({
+        ...s,
+        savedBookIds: s.savedBookIds.filter((x) => x !== id),
+      }));
+    },
   };
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
