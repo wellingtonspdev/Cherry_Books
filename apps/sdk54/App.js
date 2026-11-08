@@ -37,7 +37,8 @@ function Application() {
     Playfair: require("./assets/fonts/Playfair.ttf"),
     Lora: require("./assets/fonts/Lora.ttf"),
     Inter: require("./assets/fonts/Inter.ttf"),
-    ...Ionicons.font,
+    ionicons: require("./assets/fonts/Ionicons.ttf"),
+    Ionicons: require("./assets/fonts/Ionicons.ttf"),
   });
   if (!ready || (!loaded && !fontError))
     return (
