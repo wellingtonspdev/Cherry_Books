@@ -1,0 +1,754 @@
+{
+  "brand": "Cherry Books V3",
+  "palette": {
+    "wine": "#8F3A50",
+    "pink": "#F1BBCB",
+    "paper": "#FBF8F4"
+  },
+  "assets": [
+    {
+      "name": "logo-primary",
+      "function": "Official primary lockup",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        582,
+        166
+      ],
+      "pngDimensions": [
+        1164,
+        332
+      ],
+      "variant": "logo-primary",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "brand kit",
+        "loading"
+      ]
+    },
+    {
+      "name": "logo-horizontal",
+      "function": "Horizontal lockup",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        582,
+        166
+      ],
+      "pngDimensions": [
+        1164,
+        332
+      ],
+      "variant": "logo-horizontal",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "Home",
+        "empty states"
+      ]
+    },
+    {
+      "name": "logo-vertical",
+      "function": "Vertical lockup",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        436,
+        250
+      ],
+      "pngDimensions": [
+        872,
+        500
+      ],
+      "variant": "logo-vertical",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "brand kit"
+      ]
+    },
+    {
+      "name": "logo-compact",
+      "function": "Compact application mark",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        192,
+        166
+      ],
+      "pngDimensions": [
+        384,
+        332
+      ],
+      "variant": "logo-compact",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "compact header",
+        "small sizes"
+      ]
+    },
+    {
+      "name": "logo-symbol",
+      "function": "Book and five-petal sakura",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        192,
+        166
+      ],
+      "pngDimensions": [
+        384,
+        332
+      ],
+      "variant": "logo-symbol",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "icons",
+        "splash"
+      ]
+    },
+    {
+      "name": "logo-monochrome",
+      "function": "Single-color lockup",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        582,
+        166
+      ],
+      "pngDimensions": [
+        1164,
+        332
+      ],
+      "variant": "logo-monochrome",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "single-color printing"
+      ]
+    },
+    {
+      "name": "logo-inverted",
+      "function": "Inverted lockup",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        582,
+        166
+      ],
+      "pngDimensions": [
+        1164,
+        332
+      ],
+      "variant": "logo-inverted",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "dark backgrounds"
+      ]
+    },
+    {
+      "name": "sakura-branch-right",
+      "function": "Top-right branch",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        320,
+        274
+      ],
+      "pngDimensions": [
+        640,
+        548
+      ],
+      "variant": "sakura-branch-right",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "Home",
+        "Library"
+      ]
+    },
+    {
+      "name": "sakura-branch-compact",
+      "function": "Compact branch",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        180,
+        120
+      ],
+      "pngDimensions": [
+        360,
+        240
+      ],
+      "variant": "sakura-branch-compact",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "compact catalog headers"
+      ]
+    },
+    {
+      "name": "sakura-flower",
+      "function": "Isolated five-petal flower",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        88,
+        88
+      ],
+      "pngDimensions": [
+        176,
+        176
+      ],
+      "variant": "sakura-flower",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "brand kit",
+        "editorial accents"
+      ]
+    },
+    {
+      "name": "sakura-petal",
+      "function": "Individual petal",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        60,
+        74
+      ],
+      "pngDimensions": [
+        120,
+        148
+      ],
+      "variant": "sakura-petal",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "brand kit"
+      ]
+    },
+    {
+      "name": "sakura-cluster",
+      "function": "Small blossom cluster",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        180,
+        130
+      ],
+      "pngDimensions": [
+        360,
+        260
+      ],
+      "variant": "sakura-cluster",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "empty states",
+        "brand kit"
+      ]
+    },
+    {
+      "name": "library-empty",
+      "function": "Empty Library illustration",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        436,
+        260
+      ],
+      "pngDimensions": [
+        872,
+        520
+      ],
+      "variant": "library-empty",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "Library empty",
+        "search empty"
+      ]
+    },
+    {
+      "name": "editorial-ornament",
+      "function": "Quiet editorial separator",
+      "formats": [
+        "SVG",
+        "PNG RGBA"
+      ],
+      "viewBox": [
+        0,
+        0,
+        248,
+        48
+      ],
+      "pngDimensions": [
+        496,
+        96
+      ],
+      "variant": "editorial-ornament",
+      "origin": "Original vector drawing; wordmark outlines from licensed Playfair Display 600",
+      "usage": [
+        "details editorial separator"
+      ]
+    },
+    {
+      "name": "app-icon",
+      "function": "Application icon",
+      "formats": [
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        1024,
+        1024
+      ],
+      "variant": "app-icon",
+      "origin": "Original Cherry Books vector master",
+      "usage": [
+        "app.json",
+        "native application"
+      ]
+    },
+    {
+      "name": "adaptive-foreground",
+      "function": "adaptive-foreground",
+      "formats": [
+        "PNG RGBA"
+      ],
+      "pngDimensions": [
+        1024,
+        1024
+      ],
+      "variant": "adaptive-foreground",
+      "origin": "Original Cherry Books vector master",
+      "usage": [
+        "app.json",
+        "native application"
+      ]
+    },
+    {
+      "name": "splash-icon",
+      "function": "Application icon",
+      "formats": [
+        "PNG RGBA"
+      ],
+      "pngDimensions": [
+        512,
+        512
+      ],
+      "variant": "splash-icon",
+      "origin": "Original Cherry Books vector master",
+      "usage": [
+        "app.json",
+        "native application"
+      ]
+    },
+    {
+      "name": "web-icon-192",
+      "function": "Application icon",
+      "formats": [
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        192,
+        192
+      ],
+      "variant": "web-icon-192",
+      "origin": "Original Cherry Books vector master",
+      "usage": [
+        "app.json",
+        "Web/PWA"
+      ]
+    },
+    {
+      "name": "web-icon-512",
+      "function": "Application icon",
+      "formats": [
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        512,
+        512
+      ],
+      "variant": "web-icon-512",
+      "origin": "Original Cherry Books vector master",
+      "usage": [
+        "app.json",
+        "Web/PWA"
+      ]
+    },
+    {
+      "name": "web-maskable-512",
+      "function": "web-maskable-512",
+      "formats": [
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        512,
+        512
+      ],
+      "variant": "web-maskable-512",
+      "origin": "Original Cherry Books vector master",
+      "usage": [
+        "app.json",
+        "Web/PWA"
+      ]
+    },
+    {
+      "name": "favicon",
+      "function": "Application icon",
+      "formats": [
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        48,
+        48
+      ],
+      "variant": "favicon",
+      "origin": "Original Cherry Books vector master",
+      "usage": [
+        "app.json",
+        "native application"
+      ]
+    },
+    {
+      "name": "adaptive-monochrome",
+      "function": "Android themed icon",
+      "formats": [
+        "PNG RGBA"
+      ],
+      "pngDimensions": [
+        1024,
+        1024
+      ],
+      "variant": "monochrome",
+      "origin": "Original Cherry Books master",
+      "usage": [
+        "Android adaptive icon"
+      ]
+    },
+    {
+      "name": "covers/arquitetura",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "arquitetura",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/python",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "python",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/redes",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "redes",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/seguranca",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "seguranca",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/ia",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "ia",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/mobile",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "mobile",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/algoritmos",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "algoritmos",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/clean",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "clean",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/sql",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "sql",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/apis",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "apis",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/cloud",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "cloud",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "covers/ux",
+      "function": "Original technical book cover",
+      "formats": [
+        "SVG",
+        "PNG RGB"
+      ],
+      "pngDimensions": [
+        600,
+        900
+      ],
+      "variant": "ux",
+      "origin": "Original illustration; Playfair Display outlined typography",
+      "usage": [
+        "Home",
+        "Library",
+        "Search",
+        "Details"
+      ]
+    },
+    {
+      "name": "fonts/Playfair.ttf",
+      "function": "Licensed typeface",
+      "formats": [
+        "TTF",
+        "OFL license TXT"
+      ],
+      "variant": "Playfair",
+      "origin": "Google Fonts; SIL Open Font License bundled in assets/fonts",
+      "usage": [
+        "App.js font loading"
+      ]
+    },
+    {
+      "name": "fonts/Lora.ttf",
+      "function": "Licensed typeface",
+      "formats": [
+        "TTF",
+        "OFL license TXT"
+      ],
+      "variant": "Lora",
+      "origin": "Google Fonts; SIL Open Font License bundled in assets/fonts",
+      "usage": [
+        "App.js font loading"
+      ]
+    },
+    {
+      "name": "fonts/Inter.ttf",
+      "function": "Licensed typeface",
+      "formats": [
+        "TTF",
+        "OFL license TXT"
+      ],
+      "variant": "Inter",
+      "origin": "Google Fonts; SIL Open Font License bundled in assets/fonts",
+      "usage": [
+        "App.js font loading"
+      ]
+    }
+  ]
+}

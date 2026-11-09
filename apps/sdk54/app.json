@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Cherry Books",
+    "slug": "cherry-books",
+    "version": "3.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "Cherry Books",
+      "favicon": "./assets/icons/favicon.png"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "dev.wsp.cherrybooks",
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icons/adaptive-foreground.png",
+        "monochromeImage": "./assets/icons/adaptive-monochrome.png",
+        "backgroundColor": "#FBF8F4"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icons/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FBF8F4"
+        }
+      ]
+    ],
+    "icon": "./assets/icons/app-icon.png"
+  }
+}

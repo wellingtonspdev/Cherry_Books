@@ -1,0 +1,6 @@
+Cherry_Books_V3_Planning
+.local
+.git
+**/node_modules
+**/*.md
+apps/sdk54
