@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { View, ScrollView, FlatList } from "react-native";
-import { books, categories, getBook, searchBooks } from "./catalog";
+import { books, getAllCategories, getBook, searchBooks } from "./catalog";
 import { useLibrary } from "./store";
 import { MotionPress } from "./motion";
 import { colors as c } from "./tokens";
@@ -59,7 +59,7 @@ export default function Explorar({ navigation }) {
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
     >
-      {categories.map((label) => (
+      {getAllCategories(true).map((label) => (
         <CategoryChip
           key={label}
           label={label}

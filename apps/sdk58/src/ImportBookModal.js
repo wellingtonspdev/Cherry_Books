@@ -11,12 +11,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { parseBookFile, detectFormat, sanitizeBook, searchBookCoverOnline } from "./bookImporter";
+import { getAllCategories, registerCategory } from "./catalog";
 import { useLibrary } from "./store";
 import { colors as c, fonts } from "./tokens";
 import { styles, Button, Heading, Body, BookCover } from "./components";
 
 export default function ImportBookModal({ visible, onClose, onBookImported }) {
-  const { saveCustomBook } = useLibrary();
+  const { saveCustomBook, saveCustomCategory } = useLibrary() || {};
   const [step, setStep] = useState(1); // 1 = Escolher Arquivo, 2 = Revisão, 3 = Sucesso
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -28,6 +29,9 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [category, setCategory] = useState("Programação");
+  const [customCategories, setCustomCategories] = useState(getAllCategories());
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [newCategoryText, setNewCategoryText] = useState("");
   const [synopsis, setSynopsis] = useState("");
   const [cover, setCover] = useState(null);
   const [fetchingCover, setFetchingCover] = useState(false);
@@ -45,6 +49,9 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
     setTitle("");
     setAuthor("");
     setCategory("Programação");
+    setCustomCategories(getAllCategories());
+    setShowNewCategoryInput(false);
+    setNewCategoryText("");
     setSynopsis("");
     setCover(null);
     setFetchingCover(false);
@@ -153,6 +160,24 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
     setCoverMessage("Capa tipográfica editorial selecionada.");
   };
 
+  const handleAddCustomCategory = async () => {
+    const trimmed = (newCategoryText || "").trim();
+    if (!trimmed) return;
+    if (trimmed.length < 2) {
+      setError("O nome da categoria deve ter pelo menos 2 caracteres.");
+      return;
+    }
+    const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    registerCategory(formatted);
+    if (saveCustomCategory) {
+      await saveCustomCategory(formatted);
+    }
+    setCustomCategories(getAllCategories());
+    setCategory(formatted);
+    setNewCategoryText("");
+    setShowNewCategoryInput(false);
+  };
+
   const processFile = async (name, bufferOrString) => {
     setLoading(true);
     setError("");
@@ -161,6 +186,11 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
         filename: name,
         data: bufferOrString,
       });
+
+      if (book.category) {
+        registerCategory(book.category);
+      }
+      setCustomCategories(getAllCategories());
 
       setParsedBook(book);
       setTitle(book.title || name.replace(/\.[^.]+$/, ""));
@@ -771,7 +801,7 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
                   fontSize: 13,
                   fontWeight: "600",
                   color: c.ink,
-                  marginBottom: 4,
+                  marginBottom: 6,
                 }}
               >
                 Categoria Temática
@@ -781,18 +811,10 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
                   flexDirection: "row",
                   flexWrap: "wrap",
                   gap: 8,
-                  marginBottom: 16,
+                  marginBottom: showNewCategoryInput ? 8 : 16,
                 }}
               >
-                {[
-                  "Programação",
-                  "IA & Dados",
-                  "Segurança",
-                  "Mobile",
-                  "Cloud",
-                  "Arquitetura",
-                  "Geral",
-                ].map((cat) => (
+                {customCategories.map((cat) => (
                   <Pressable
                     key={cat}
                     onPress={() => setCategory(cat)}
@@ -818,7 +840,96 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
                     </Text>
                   </Pressable>
                 ))}
+
+                <Pressable
+                  onPress={() => setShowNewCategoryInput(!showNewCategoryInput)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderStyle: "dashed",
+                    borderColor: showNewCategoryInput ? c.brand : c.border,
+                    backgroundColor: showNewCategoryInput
+                      ? "#F7ECEE"
+                      : c.canvas || "#FFFBF7",
+                  }}
+                >
+                  <Ionicons
+                    name={showNewCategoryInput ? "close-circle" : "add-circle-outline"}
+                    size={15}
+                    color={c.brand}
+                  />
+                  <Text
+                    style={{
+                      fontFamily: fonts.ui,
+                      fontSize: 13,
+                      color: c.brand,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Personalizar
+                  </Text>
+                </Pressable>
               </View>
+
+              {showNewCategoryInput ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 16,
+                    padding: 8,
+                    backgroundColor: "#F7ECEE",
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: c.border || "#E5D9D7",
+                  }}
+                >
+                  <TextInput
+                    placeholder="Nova categoria (ex: Filosofia, DevOps...)"
+                    value={newCategoryText}
+                    onChangeText={setNewCategoryText}
+                    onSubmitEditing={handleAddCustomCategory}
+                    returnKeyType="done"
+                    style={[
+                      styles.input,
+                      {
+                        flex: 1,
+                        minHeight: 38,
+                        paddingVertical: 6,
+                        paddingHorizontal: 10,
+                        backgroundColor: "#FFFFFF",
+                        fontSize: 13,
+                      },
+                    ]}
+                  />
+                  <Pressable
+                    onPress={handleAddCustomCategory}
+                    style={{
+                      backgroundColor: c.brand,
+                      paddingHorizontal: 14,
+                      paddingVertical: 9,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: fonts.ui,
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: "#FFFFFF",
+                      }}
+                    >
+                      Adicionar
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
 
               <Text
                 style={{

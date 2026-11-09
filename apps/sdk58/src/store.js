@@ -12,6 +12,10 @@ import {
   registerCustomBooks,
   unregisterCustomBook,
   getCustomBooks,
+  registerCategory,
+  registerCategories,
+  getCustomCategories,
+  getAllCategories,
 } from "./catalog";
 import {
   loadPublicLibraryBooks,
@@ -20,6 +24,7 @@ import {
 const Context = createContext(null);
 export const STORAGE_KEY = "cherry-books:v1";
 export const CUSTOM_BOOKS_STORAGE_KEY = "cherry-books:custom-books:v1";
+export const CUSTOM_CATEGORIES_STORAGE_KEY = "cherry-books:custom-categories:v1";
 export function LibraryProvider({ children }) {
   const [state, setState] = useState(initialState),
     [ready, setReady] = useState(false),
@@ -45,6 +50,15 @@ export function LibraryProvider({ children }) {
             if (Array.isArray(parsed)) {
               registerCustomBooks(parsed);
               if (active) setCustomBooksList(parsed);
+            }
+          } catch {}
+        }
+        const rawCats = await AsyncStorage.getItem(CUSTOM_CATEGORIES_STORAGE_KEY);
+        if (rawCats) {
+          try {
+            const parsedCats = JSON.parse(rawCats);
+            if (Array.isArray(parsedCats)) {
+              registerCategories(parsedCats);
             }
           } catch {}
         }
@@ -146,8 +160,29 @@ export function LibraryProvider({ children }) {
         progressByBook: { ...s.progressByBook, [progress.bookId]: progress },
       })),
     customBooks: customBooksList,
+    saveCustomCategory: async (categoryName) => {
+      const reg = registerCategory(categoryName);
+      if (reg) {
+        try {
+          await AsyncStorage.setItem(
+            CUSTOM_CATEGORIES_STORAGE_KEY,
+            JSON.stringify(getCustomCategories()),
+          );
+        } catch {}
+      }
+      return reg;
+    },
     saveCustomBook: async (book, andPublish = false) => {
       registerCustomBooks(book);
+      if (book.category) {
+        registerCategory(book.category);
+        try {
+          await AsyncStorage.setItem(
+            CUSTOM_CATEGORIES_STORAGE_KEY,
+            JSON.stringify(getCustomCategories()),
+          );
+        } catch {}
+      }
       if (andPublish) {
         await publishToPublicLibrary(book);
       }

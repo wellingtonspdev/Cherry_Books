@@ -200,24 +200,78 @@ export const books = subjects.map(
     ],
   }),
 );
-export const categories = [
-  "Todos",
+export const DEFAULT_CATEGORIES = [
   "Programação",
   "IA & Dados",
   "Segurança",
   "Mobile",
   "Cloud",
   "Arquitetura",
+  "Geral",
 ];
+
+const customCategoriesSet = new Set();
+
+export const categories = [
+  "Todos",
+  ...DEFAULT_CATEGORIES,
+];
+
+export const registerCategory = (rawCategory) => {
+  if (typeof rawCategory !== "string") return null;
+  const clean = rawCategory.trim().replace(/\s+/g, " ");
+  if (!clean || clean.length < 2 || clean.length > 50) return null;
+  if (clean.toLowerCase() === "todos") return null;
+
+  for (const def of DEFAULT_CATEGORIES) {
+    if (def.toLowerCase() === clean.toLowerCase()) return def;
+  }
+  for (const existing of customCategoriesSet) {
+    if (existing.toLowerCase() === clean.toLowerCase()) return existing;
+  }
+
+  customCategoriesSet.add(clean);
+  if (!categories.includes(clean)) {
+    categories.push(clean);
+  }
+  return clean;
+};
+
+export const registerCategories = (list) => {
+  if (Array.isArray(list)) {
+    for (const item of list) {
+      registerCategory(item);
+    }
+  }
+};
+
+export const getCustomCategories = () => Array.from(customCategoriesSet);
+
+export const getAllCategories = (includeTodos = false) => {
+  const list = [];
+  if (includeTodos) {
+    list.push("Todos");
+  }
+  for (const def of DEFAULT_CATEGORIES) {
+    list.push(def);
+  }
+  for (const cat of customCategoriesSet) {
+    if (!list.includes(cat)) {
+      list.push(cat);
+    }
+  }
+  return list;
+};
+
 const customBooksMap = new Map();
 
 export const registerCustomBooks = (list) => {
-  if (Array.isArray(list)) {
-    for (const b of list) {
-      if (b && typeof b.id === "string") customBooksMap.set(b.id, b);
+  const items = Array.isArray(list) ? list : list && typeof list === "object" ? [list] : [];
+  for (const b of items) {
+    if (b && typeof b.id === "string") {
+      customBooksMap.set(b.id, b);
+      if (b.category) registerCategory(b.category);
     }
-  } else if (list && typeof list.id === "string") {
-    customBooksMap.set(list.id, list);
   }
 };
 

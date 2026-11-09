@@ -612,3 +612,62 @@ test("extrai capas automáticas de EPUB, MOBI, DOCX e PDF e preserva capa manual
   });
   assert.equal(sanitized.cover, "https://exemplo.com/capa.jpg");
 });
+
+test("gerenciamento dinâmico e personalização de categorias temáticas", () => {
+  const {
+    DEFAULT_CATEGORIES,
+    getAllCategories,
+    registerCategory,
+    registerCategories,
+    registerCustomBooks,
+    unregisterCustomBook,
+    searchBooks,
+  } = require(path.join(base, "src/catalog"));
+
+  // 1. Contém categorias padrão e "Todos"
+  const withTodos = getAllCategories(true);
+  assert.equal(withTodos[0], "Todos");
+  for (const def of DEFAULT_CATEGORIES) {
+    assert.ok(withTodos.includes(def), `Deve conter categoria padrão ${def}`);
+  }
+
+  // 2. Registro manual de categoria personalizada
+  const reg1 = registerCategory("Filosofia");
+  assert.equal(reg1, "Filosofia");
+  assert.ok(getAllCategories().includes("Filosofia"));
+
+  // 3. Sanitização e prevenção de duplicatas (case insensitive e espaços)
+  const regDup = registerCategory("  filosofia  ");
+  assert.equal(regDup, "Filosofia");
+  const countFilosofia = getAllCategories().filter(
+    (c) => c.toLowerCase() === "filosofia",
+  ).length;
+  assert.equal(countFilosofia, 1, "Não deve duplicar categoria existente");
+
+  // 4. Registro de lote
+  registerCategories(["DevOps", "Biohacking"]);
+  assert.ok(getAllCategories().includes("DevOps"));
+  assert.ok(getAllCategories().includes("Biohacking"));
+
+  // 5. Descoberta automática de categoria ao registrar livro personalizado
+  registerCustomBooks({
+    id: "livro-neuro",
+    title: "Mente e Código",
+    author: "Santiago Ramón y Cajal",
+    category: "Neurociência",
+    chapters: [{ title: "C1", blocks: [{ text: "Sinapses" }] }],
+  });
+
+  assert.ok(
+    getAllCategories().includes("Neurociência"),
+    "Nova categoria deve ser adicionada dinamicamente pelo livro",
+  );
+
+  // 6. Busca por categoria personalizada
+  const searchResults = searchBooks("", "Neurociência");
+  assert.equal(searchResults.length, 1);
+  assert.equal(searchResults[0].id, "livro-neuro");
+
+  // Limpeza
+  unregisterCustomBook("livro-neuro");
+});
