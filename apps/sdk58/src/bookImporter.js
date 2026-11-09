@@ -3,6 +3,173 @@
 
 import { quoteHash, tokenize } from "./model";
 
+// --- Polyfill Seguro e de Alto Desempenho de Buffer para Navegadores e Ambientes Universais ---
+export function wrapBuffer(u8) {
+  if (!u8) return u8;
+  if (u8._isCherryBuffer) return u8;
+
+  const view = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  u8._isCherryBuffer = true;
+
+  u8.readUInt16LE = function (offset) {
+    return view.getUint16(offset, true);
+  };
+  u8.readUInt32LE = function (offset) {
+    return view.getUint32(offset, true);
+  };
+  u8.readUInt16BE = function (offset) {
+    return view.getUint16(offset, false);
+  };
+  u8.readUInt32BE = function (offset) {
+    return view.getUint32(offset, false);
+  };
+
+  const origSubarray = u8.subarray || u8.slice;
+  u8.slice = function (start, end) {
+    const s = Math.max(0, start < 0 ? this.length + start : (start || 0));
+    const e = Math.min(this.length, end === undefined ? this.length : end < 0 ? this.length + end : end);
+    const sub = origSubarray.call(this, s, Math.max(s, e));
+    return wrapBuffer(sub);
+  };
+
+  u8.toString = function (encoding = "utf8", start = 0, end = this.length) {
+    const s = Math.max(0, start < 0 ? this.length + start : (start || 0));
+    const e = Math.min(this.length, end === undefined ? this.length : end < 0 ? this.length + end : end);
+    if (s >= e) return "";
+    const slice = this.subarray(s, e);
+
+    if (encoding === "binary" || encoding === "latin1") {
+      let str = "";
+      const CHUNK = 8192;
+      for (let i = 0; i < slice.length; i += CHUNK) {
+        const chunk = slice.subarray(i, i + CHUNK);
+        str += String.fromCharCode.apply(null, chunk);
+      }
+      return str;
+    }
+
+    if (encoding === "base64") {
+      let str = "";
+      const CHUNK = 8192;
+      for (let i = 0; i < slice.length; i += CHUNK) {
+        const chunk = slice.subarray(i, i + CHUNK);
+        str += String.fromCharCode.apply(null, chunk);
+      }
+      if (typeof btoa !== "undefined") {
+        return btoa(str);
+      }
+      if (typeof Buffer !== "undefined" && typeof Buffer.from === "function") {
+        return Buffer.from(slice).toString("base64");
+      }
+      return "";
+    }
+
+    if (encoding === "ascii") {
+      if (typeof TextDecoder !== "undefined") {
+        try {
+          return new TextDecoder("ascii").decode(slice);
+        } catch {}
+      }
+      let str = "";
+      for (let i = 0; i < slice.length; i++) {
+        str += String.fromCharCode(slice[i] & 0x7f);
+      }
+      return str;
+    }
+
+    if (typeof TextDecoder !== "undefined") {
+      try {
+        return new TextDecoder("utf-8").decode(slice);
+      } catch {}
+    }
+    let str = "";
+    for (let i = 0; i < slice.length; i++) {
+      str += String.fromCharCode(slice[i]);
+    }
+    try {
+      return decodeURIComponent(escape(str));
+    } catch {
+      return str;
+    }
+  };
+
+  return u8;
+}
+
+const _NativeBuffer =
+  typeof Buffer !== "undefined" && typeof Buffer.from === "function"
+    ? Buffer
+    : null;
+
+export function toBuffer(input, encoding = "utf8") {
+  if (!input) return wrapBuffer(new Uint8Array(0));
+  if (_NativeBuffer && typeof _NativeBuffer.isBuffer === "function" && _NativeBuffer.isBuffer(input)) {
+    return input;
+  }
+  if (input instanceof Uint8Array) {
+    return wrapBuffer(input);
+  }
+  if (input instanceof ArrayBuffer) {
+    return wrapBuffer(new Uint8Array(input));
+  }
+  if (typeof input === "string") {
+    if (encoding === "base64" && typeof atob !== "undefined") {
+      const bin = atob(input);
+      const u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      return wrapBuffer(u8);
+    }
+    if (encoding === "binary") {
+      const u8 = new Uint8Array(input.length);
+      for (let i = 0; i < input.length; i++) u8[i] = input.charCodeAt(i) & 0xff;
+      return wrapBuffer(u8);
+    }
+    if (typeof TextEncoder !== "undefined") {
+      return wrapBuffer(new TextEncoder().encode(input));
+    }
+    const u8 = new Uint8Array(input.length);
+    for (let i = 0; i < input.length; i++) u8[i] = input.charCodeAt(i) & 0xff;
+    return wrapBuffer(u8);
+  }
+  return wrapBuffer(new Uint8Array(input));
+}
+
+export const SafeBuffer = {
+  isBuffer(obj) {
+    if (!obj) return false;
+    if (_NativeBuffer && typeof _NativeBuffer.isBuffer === "function") {
+      return _NativeBuffer.isBuffer(obj) || obj instanceof Uint8Array || obj._isCherryBuffer === true;
+    }
+    return obj instanceof Uint8Array || obj._isCherryBuffer === true;
+  },
+  from(data, encoding) {
+    if (_NativeBuffer && typeof _NativeBuffer.from === "function") {
+      try {
+        return _NativeBuffer.from(data, encoding);
+      } catch {}
+    }
+    return toBuffer(data, encoding);
+  },
+  alloc(size) {
+    if (_NativeBuffer && typeof _NativeBuffer.alloc === "function") {
+      try {
+        return _NativeBuffer.alloc(size);
+      } catch {}
+    }
+    return wrapBuffer(new Uint8Array(size));
+  },
+};
+
+if (typeof globalThis !== "undefined" && typeof globalThis.Buffer === "undefined") {
+  globalThis.Buffer = SafeBuffer;
+}
+if (typeof window !== "undefined" && typeof window.Buffer === "undefined") {
+  window.Buffer = SafeBuffer;
+}
+if (typeof global !== "undefined" && typeof global.Buffer === "undefined") {
+  global.Buffer = SafeBuffer;
+}
+
 // --- Utilitários de Hash e Sanitização ---
 export function sanitizeString(str) {
   if (typeof str !== "string") return "";
@@ -47,9 +214,7 @@ export function detectFormat(filename = "", contentOrBuffer = null) {
       return "text";
     }
 
-    const buf = Buffer.isBuffer(contentOrBuffer)
-      ? contentOrBuffer
-      : Buffer.from(contentOrBuffer);
+    const buf = toBuffer(contentOrBuffer);
     if (buf.length >= 4 && buf.toString("utf8", 0, 4) === "%PDF") return "pdf";
     if (buf.length >= 4 && buf.readUInt32LE(0) === 0x04034b50) {
       if (ext === "docx") return "docx";
@@ -303,7 +468,7 @@ export function parseJsonBook(jsonString) {
 
 // --- Leitor de ZIP em Memória (DOCX & EPUB) ---
 function parseZipEntries(buffer) {
-  const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  const buf = toBuffer(buffer);
   if (buf.length < 22) throw new Error("Arquivo ZIP truncado ou inválido.");
 
   // Procura EOCD (End of Central Directory)
@@ -641,7 +806,7 @@ export function parseEpubBook(buffer, filename = "livro.epub") {
 
 // --- Parser de MOBI / AZW3 (Kindle) ---
 export function parseMobiBook(buffer, filename = "livro.mobi") {
-  const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  const buf = toBuffer(buffer);
   if (buf.length < 78) {
     throw new Error("Arquivo MOBI inválido: cabeçalho PalmDOC corrompido.");
   }
@@ -764,7 +929,7 @@ export function parseMobiBook(buffer, filename = "livro.mobi") {
 
 // --- Parser de PDF ---
 export function parsePdfBook(buffer, filename = "documento.pdf") {
-  const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  const buf = toBuffer(buffer);
   const pdfStr = buf.toString("binary");
 
   if (!pdfStr.startsWith("%PDF")) {
@@ -837,25 +1002,26 @@ export function parsePdfBook(buffer, filename = "documento.pdf") {
 
 // --- Ponto de Entrada Principal ---
 export function parseBookFile({ filename, data, type }) {
-  const format = type || detectFormat(filename, data);
+  const buf = toBuffer(data);
+  const format = type || detectFormat(filename, buf);
 
   switch (format) {
     case "markdown":
-      return parseMarkdownBook(typeof data === "string" ? data : data.toString("utf8"), filename);
+      return parseMarkdownBook(typeof data === "string" ? data : buf.toString("utf8"), filename);
     case "text":
-      return parseTextBook(typeof data === "string" ? data : data.toString("utf8"), filename);
+      return parseTextBook(typeof data === "string" ? data : buf.toString("utf8"), filename);
     case "json":
-      return parseJsonBook(typeof data === "string" ? data : data.toString("utf8"));
+      return parseJsonBook(typeof data === "string" ? data : buf.toString("utf8"));
     case "docx":
-      return parseDocxBook(data, filename);
+      return parseDocxBook(buf, filename);
     case "epub":
-      return parseEpubBook(data, filename);
+      return parseEpubBook(buf, filename);
     case "mobi":
-      return parseMobiBook(data, filename);
+      return parseMobiBook(buf, filename);
     case "pdf":
-      return parsePdfBook(data, filename);
+      return parsePdfBook(buf, filename);
     default:
-      return parseTextBook(typeof data === "string" ? data : data.toString("utf8"), filename);
+      return parseTextBook(typeof data === "string" ? data : buf.toString("utf8"), filename);
   }
 }
 

@@ -671,3 +671,40 @@ test("gerenciamento dinâmico e personalização de categorias temáticas", () =
   // Limpeza
   unregisterCustomBook("livro-neuro");
 });
+
+test("wrapBuffer, toBuffer e SafeBuffer garantem compatibilidade universal em navegadores", () => {
+  const { toBuffer, wrapBuffer, SafeBuffer } = require(path.join(base, "src/bookImporter"));
+
+  // 1. ArrayBuffer para toBuffer
+  const ab = new ArrayBuffer(16);
+  const dv = new DataView(ab);
+  dv.setUint32(0, 0x04034b50, true);
+  dv.setUint16(4, 0x1234, true);
+
+  const wrapped = toBuffer(ab);
+  assert.equal(wrapped.readUInt32LE(0), 0x04034b50);
+  assert.equal(wrapped.readUInt16LE(4), 0x1234);
+
+  // 2. Sub-slice e toString base64 / binary
+  const sub = wrapped.slice(0, 6);
+  assert.equal(sub.length, 6);
+  assert.equal(sub.readUInt32LE(0), 0x04034b50);
+  assert.ok(typeof sub.toString("base64") === "string");
+  assert.ok(sub.toString("base64").length > 0);
+
+  // 3. String para toBuffer utf8
+  const textBuf = toBuffer("Olá Cherry Books", "utf8");
+  assert.equal(textBuf.toString("utf8"), "Olá Cherry Books");
+
+  // 4. SafeBuffer global
+  assert.ok(SafeBuffer.isBuffer(wrapped));
+  assert.ok(SafeBuffer.isBuffer(new Uint8Array(4)));
+
+  // 5. Ingestão de livro usando Uint8Array puro (sem Node Buffer)
+  const mdText = "# Livro Web\nAutor: Maria\n\n## Cap 1\nConteúdo puro.";
+  const u8 = new TextEncoder().encode(mdText);
+  const parsed = parseBookFile({ filename: "web.md", data: u8 });
+  assert.equal(parsed.title, "Livro Web");
+  assert.equal(parsed.author, "Maria");
+  assert.equal(parsed.chapters.length, 1);
+});

@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { parseBookFile, detectFormat, sanitizeBook, searchBookCoverOnline } from "./bookImporter";
+import { parseBookFile, detectFormat, sanitizeBook, searchBookCoverOnline, toBuffer } from "./bookImporter";
 import { getAllCategories, registerCategory } from "./catalog";
 import { useLibrary } from "./store";
 import { colors as c, fonts } from "./tokens";
@@ -20,6 +20,8 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
   const { saveCustomBook, saveCustomCategory } = useLibrary() || {};
   const [step, setStep] = useState(1); // 1 = Escolher Arquivo, 2 = Revisão, 3 = Sucesso
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [progressStage, setProgressStage] = useState("");
   const [error, setError] = useState("");
   const [parsedBook, setParsedBook] = useState(null);
   const [isPublic, setIsPublic] = useState(true);
@@ -42,6 +44,8 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
   const reset = () => {
     setStep(1);
     setLoading(false);
+    setUploadProgress(0);
+    setProgressStage("");
     setError("");
     setParsedBook(null);
     setIsPublic(true);
@@ -178,8 +182,41 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
     setShowNewCategoryInput(false);
   };
 
+  const readFileWithProgress = (file, onProgress) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const isText = ["txt", "md", "json"].includes(ext);
+
+      reader.onprogress = (evt) => {
+        if (evt.lengthComputable && evt.total > 0) {
+          const pct = Math.min(100, Math.round((evt.loaded / evt.total) * 100));
+          if (onProgress) onProgress(pct);
+        }
+      };
+
+      reader.onload = () => {
+        if (onProgress) onProgress(100);
+        resolve({ data: reader.result, isText });
+      };
+
+      reader.onerror = () => {
+        reject(new Error("Falha ao ler os dados do arquivo no navegador."));
+      };
+
+      reader.onabort = () => {
+        reject(new Error("Leitura do arquivo cancelada pelo usuário."));
+      };
+
+      if (isText) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    });
+  };
+
   const processFile = async (name, bufferOrString) => {
-    setLoading(true);
     setError("");
     try {
       const book = parseBookFile({
@@ -206,8 +243,7 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
       setStep(2);
     } catch (err) {
       setError(err?.message || "Não foi possível processar o arquivo.");
-    } finally {
-      setLoading(false);
+      throw err;
     }
   };
 
@@ -221,16 +257,46 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
         if (!file) return;
 
         setLoading(true);
-        const name = file.name;
-        const ext = (name.split(".").pop() || "").toLowerCase();
+        setError("");
+        setUploadProgress(10);
+        setProgressStage("Iniciando leitura do arquivo...");
 
-        if (["txt", "md", "json"].includes(ext)) {
-          const text = await file.text();
-          processFile(name, text);
-        } else {
-          const arrayBuf = await file.arrayBuffer();
-          const buf = Buffer.from(arrayBuf);
-          processFile(name, buf);
+        try {
+          const name = file.name;
+          const ext = (name.split(".").pop() || "").toLowerCase();
+
+          // 1. Leitura do arquivo do dispositivo com progresso real (10% a 50%)
+          const { data, isText } = await readFileWithProgress(file, (pct) => {
+            const mapped = Math.round(10 + pct * 0.4);
+            setUploadProgress(mapped);
+            setProgressStage(`Lendo arquivo (${mapped}%)...`);
+          });
+
+          // Yield para animação fluida da barra de progresso
+          setUploadProgress(55);
+          setProgressStage("Analisando integridade do formato...");
+          await new Promise((r) => setTimeout(r, 60));
+
+          // 2. Decodificação da estrutura (70%)
+          setUploadProgress(70);
+          setProgressStage("Decodificando estrutura e capítulos...");
+          await new Promise((r) => setTimeout(r, 60));
+
+          const bufferOrString = isText ? data : toBuffer(data);
+
+          // 3. Extração de metadados e capa (85%)
+          setUploadProgress(85);
+          setProgressStage("Extraindo metadados e capa...");
+          await new Promise((r) => setTimeout(r, 50));
+
+          await processFile(name, bufferOrString);
+
+          setUploadProgress(100);
+          setProgressStage("Concluído!");
+        } catch (err) {
+          setError(err?.message || "Não foi possível carregar o arquivo.");
+        } finally {
+          setLoading(false);
         }
       };
       input.click();
@@ -248,6 +314,8 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
     }
 
     setLoading(true);
+    setUploadProgress(25);
+    setProgressStage("Sanitizando estrutura e blocos...");
     try {
       const finalBook = sanitizeBook({
         ...parsedBook,
@@ -259,7 +327,12 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
         isPublic,
       });
 
+      setUploadProgress(65);
+      setProgressStage("Gravando no acervo comunitário...");
       await saveCustomBook(finalBook, isPublic);
+
+      setUploadProgress(100);
+      setProgressStage("Concluído!");
       setStep(3);
       if (onBookImported) onBookImported(finalBook);
     } catch (err) {
@@ -389,7 +462,98 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
                 </Text>
 
                 {loading ? (
-                  <ActivityIndicator size="large" color={c.brand} />
+                  <View
+                    style={{
+                      width: "100%",
+                      alignItems: "center",
+                      paddingVertical: 10,
+                    }}
+                  >
+                    {/* Indicador Numérico de Porcentagem */}
+                    <Text
+                      style={{
+                        fontFamily: fonts.display,
+                        fontSize: 28,
+                        fontWeight: "700",
+                        color: c.brand,
+                        marginBottom: 10,
+                      }}
+                    >
+                      {uploadProgress}%
+                    </Text>
+
+                    {/* Barra de Carregamento Estilizada */}
+                    <View
+                      style={{
+                        width: "100%",
+                        maxWidth: 320,
+                        height: 10,
+                        backgroundColor: "#EFE6E4",
+                        borderRadius: 5,
+                        overflow: "hidden",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: `${Math.min(100, Math.max(0, uploadProgress))}%`,
+                          height: "100%",
+                          backgroundColor: c.brand,
+                          borderRadius: 5,
+                        }}
+                      />
+                    </View>
+
+                    {/* Etapa com Spinner de Atividade */}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                        marginBottom: 16,
+                      }}
+                    >
+                      <ActivityIndicator size="small" color={c.brand} />
+                      <Text
+                        style={{
+                          fontFamily: fonts.ui,
+                          fontSize: 13,
+                          color: c.ink,
+                          fontWeight: "500",
+                        }}
+                      >
+                        {progressStage || "Processando arquivo..."}
+                      </Text>
+                    </View>
+
+                    {/* Botão de Cancelamento Seguro */}
+                    <Pressable
+                      onPress={() => {
+                        setLoading(false);
+                        setUploadProgress(0);
+                        setProgressStage("");
+                      }}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 7,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: c.border,
+                        backgroundColor: c.canvas || "#FFFBF7",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: fonts.ui,
+                          fontSize: 12,
+                          color: c.muted,
+                          fontWeight: "500",
+                        }}
+                      >
+                        Cancelar carregamento
+                      </Text>
+                    </Pressable>
+                  </View>
                 ) : (
                   <Button
                     title="Selecionar Arquivo no Dispositivo"
@@ -1019,25 +1183,60 @@ export default function ImportBookModal({ visible, onClose, onBookImported }) {
                 )}
               </View>
 
-              <View style={{ flexDirection: "row", gap: 12 }}>
-                <Button
-                  title="Voltar"
-                  variant="secondary"
-                  onPress={() => setStep(1)}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  title={
-                    loading
-                      ? "Salvando..."
-                      : isPublic
-                        ? "Publicar Livro"
-                        : "Salvar no App"
-                  }
-                  onPress={handleSaveAndFinish}
-                  style={{ flex: 1 }}
-                />
-              </View>
+              {loading ? (
+                <View style={{ alignItems: "center", paddingVertical: 10 }}>
+                  <Text
+                    style={{
+                      fontFamily: fonts.display,
+                      fontSize: 22,
+                      fontWeight: "700",
+                      color: c.brand,
+                      marginBottom: 6,
+                    }}
+                  >
+                    {uploadProgress}%
+                  </Text>
+                  <View
+                    style={{
+                      width: "100%",
+                      maxWidth: 260,
+                      height: 8,
+                      backgroundColor: "#EFE6E4",
+                      borderRadius: 4,
+                      overflow: "hidden",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${Math.min(100, Math.max(0, uploadProgress))}%`,
+                        height: "100%",
+                        backgroundColor: c.brand,
+                      }}
+                    />
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <ActivityIndicator size="small" color={c.brand} />
+                    <Text style={{ fontFamily: fonts.ui, fontSize: 13, color: c.muted }}>
+                      {progressStage || "Gravando livro..."}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                  <Button
+                    title="Voltar"
+                    variant="secondary"
+                    onPress={() => setStep(1)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    title={isPublic ? "Publicar Livro" : "Salvar no App"}
+                    onPress={handleSaveAndFinish}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              )}
             </ScrollView>
           )}
 
